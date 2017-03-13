@@ -1,0 +1,118 @@
+---
+title: "Final Project Practical Machine Learning"
+author: "Brandon Wirakesuma"
+date: "March 12, 2017"
+output: html_document
+---
+
+##Introduction:
+We aim to predict what type of exercise participants are working on based off of trininag data.
+
+
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(corrplot)
+```
+
+##Load Data
+Load the data from a csv file
+```{r}
+training <- read.csv('pml-training.csv', na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv('pml-testing.csv', na.strings=c("NA","#DIV/0!",""))
+
+```
+
+##Clean the data:
+Need to see where there are NA values in columns and remove them. Also we will use the nearzeroVar function to remove things. In additon to that we'll remove timestamp identifisers.
+
+```{r}
+
+zeroVartrain <- nearZeroVar(training, saveMetrics=TRUE)
+goodColumns <-subset(zeroVartrain, nzv ==FALSE)
+
+goodColumns <-subset(zeroVartrain, zeroVar ==FALSE)
+
+goodColumns <-rownames(goodColumns)
+#Remove Timestamp stuff
+goodColumns <- goodColumns[-(1:7)]
+nzvVar<-names(training) %in% goodColumns
+#Remove Zero Sum
+
+trainingClean <-training[nzvVar]
+
+trainingClean <- trainingClean[, colSums(is.na(trainingClean)) == 0] 
+
+
+
+```
+
+##Breakout the Training Data:
+```{r}
+set.seed(888)
+inTrain <-createDataPartition(trainingClean$classe,p=0.70,list=FALSE)
+training <-trainingClean[inTrain,]
+valid <-trainingClean[-inTrain,]
+
+```
+
+##Run Models on the training set
+For this test we wll compare using a tree and using a Gradient Boosted Model and set then up so we can compare the results later.
+
+```{r}
+set.seed(888)
+mod1 <- train(classe~., data=training, method="rpart")
+
+
+set.seed(888)
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 5,
+                           repeats = 1)
+
+mod3 <- train(classe~., data=training, method="gbm",verbose=FALSE,trControl = fitControl)
+
+
+```
+
+##Run Predictions
+After training the models, we will not use our cross validation set to predict.
+
+```{r}
+
+pred1 <-predict(mod1,valid)
+
+pred3 <-predict(mod3,valid)
+
+```
+
+
+##Cross Validation Accuracy
+See the accuracy of the model using the cross validation
+
+```{r}
+#Accuracy of the Tree model
+(conf_mod1 <- confusionMatrix(valid$classe, pred1))
+(accuracy_rf <- conf_mod1$overall[1])
+
+#Accuracy of the GBM
+
+(conf_mod3 <- confusionMatrix(valid$classe, pred3))
+(accuracy_gbm <- conf_mod3$overall[1])
+
+
+```
+THe GBM model for this version worke had a 0.962277 which was much higher than the tree model which had an accuracy of 0.5063721
+
+
+##Predicting on the Test set
+
+
+```{r}
+(predict(mod3, testing))
+```
+
+
+
+
